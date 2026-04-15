@@ -4,16 +4,10 @@ GAL Security es una aplicación móvil diseñada para la administración remota 
 ### Integrantes:
 |Apellido | Nombre |
 |---|----|
-Marini
-Marini
-Chiappini
-Valentino
-Wilt
-Juan Ignacio
-Oyarzo
-Gabriel Francisco
-Castrosin
-Ignacio
-Alvarez Pieroni
-Federico
+|Marini | Alvaro|
+|Chiappini | Valentino|
+|Wilt | Juan Ignacio|
+|Oyarzo | Gabriel Francisco|
+|Castrosin | Ignacio|
+|Alvarez Pieroni | Federico|
 
