@@ -1,0 +1,11 @@
+# Llaves y Secretos
+firebase-key.json
+.env
+
+# Archivos compilados de Python
+__pycache__/
+*.pyc
+
+.env
+firebase-key.json
+

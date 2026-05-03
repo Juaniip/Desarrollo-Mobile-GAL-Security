@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  gals-api:
+    build: .
+    container_name: gals-middleware
+    restart: unless-stopped
+    pid: "host" # CLAVE: Permite que psutil lea la CPU/RAM real de la Raspberry, no la del contenedor
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock # Le da control total sobre el motor de Docker
+      - /sys:/sys:ro # Necesario para leer la temperatura
+
+  gals-tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: gals-tunnel
+    restart: unless-stopped
+    depends_on:
+      - gals-api
+    # El túnel apunta directamente al nombre del contenedor de la API por la red interna
+    command: tunnel --no-autoupdate --url http://gals-api:8085
