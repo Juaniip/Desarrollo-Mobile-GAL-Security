@@ -9,18 +9,21 @@ import ServerListScreen from './src/screens/ServerListScreen';
 import DashboardScreen from './src/screens/DashboardScreen';
 import LogsScreen from './src/screens/LogsScreen';
 import AuditScreen from './src/screens/AuditScreen';
+import NetworkGraphScreen from './src/screens/NetworkGraphScreen';
 import RadialMenuScreen from './src/screens/RadialMenuScreen';
 
 export type RootStackParamList = {
   Login: undefined;
   ServerList: { uid: string };
-  Dashboard: { apiUrl: string; jwt: string };
-  Logs: { apiUrl: string; jwt: string; containerId: string };
-  Audit: { apiUrl: string; jwt: string };
-  RadialMenu: { 
-    apiUrl?: string; 
-    jwt?: string; 
-    from: 'ServerList' | 'Dashboard' | 'Logs' | 'Audit' 
+  Dashboard: { apiUrl: string; jwt: string; role?: 'administrador' | 'operador' };
+  Logs: { apiUrl: string; jwt: string; containerId: string; role?: 'administrador' | 'operador' };
+  Audit: { apiUrl: string; jwt: string; role?: 'administrador' | 'operador' };
+  NetworkGraph: { apiUrl: string; jwt: string; role?: 'administrador' | 'operador' };
+  RadialMenu: {
+    apiUrl?: string;
+    jwt?: string;
+    role?: 'administrador' | 'operador';
+    from: 'ServerList' | 'Dashboard' | 'Logs' | 'Audit' | 'NetworkGraph';
   };
 };
 
@@ -57,10 +60,11 @@ export default function App() {
             <Stack.Screen name="Dashboard" component={DashboardScreen} />
             <Stack.Screen name="Logs" component={LogsScreen} />
             <Stack.Screen name="Audit" component={AuditScreen} />
-            <Stack.Screen 
-              name="RadialMenu" 
-              component={RadialMenuScreen} 
-              options={{ presentation: 'transparentModal', animation: 'fade' }} 
+            <Stack.Screen name="NetworkGraph" component={NetworkGraphScreen} />
+            <Stack.Screen
+              name="RadialMenu"
+              component={RadialMenuScreen}
+              options={{ presentation: 'transparentModal', animation: 'fade' }}
             />
           </Stack.Group>
         )}
