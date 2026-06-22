@@ -1,33 +1,44 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import auth from '@react-native-firebase/auth';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
 
 export default function RadialMenuScreen({ navigation, route }: any) {
-  const { apiUrl, jwt, from } = route.params || {};
+  const { apiUrl, jwt, role, from } = route.params || {};
 
   const handleLogout = async () => {
     try {
+      // Firebase cierra la sesión de la app, pero el SDK nativo de Google
+      // mantiene su propia caché por separado. Sin este signOut(), la
+      // próxima vez que alguien toque "Acceder con Google" le va a devolver
+      // la misma cuenta sin mostrar el selector de cuentas.
+      await GoogleSignin.signOut();
       await auth().signOut();
     } catch (error) {
       console.error(error);
     }
   };
 
+  const showBackOption =
+    from === 'Dashboard' || from === 'Logs' || from === 'Audit' || from === 'NetworkGraph';
+  const showTopologyOption = from !== 'ServerList';
+  const showKeychainOption = from !== 'ServerList';
+
   return (
     <View style={styles.overlay}>
       <TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => navigation.goBack()} />
-      
+
       <View style={styles.menuContainer}>
-        
-        {/* BOTÓN 1: Dinámico (Auditoría o Volver) */}
-        {(from === 'Dashboard' || from === 'Logs' || from === 'Audit') && (
-          <TouchableOpacity 
-            style={[styles.option, styles.posTopLeft]} 
+
+        {/* BOTÓN: Dinámico (Auditoría o Volver al Dashboard) */}
+        {showBackOption && (
+          <TouchableOpacity
+            style={[styles.option, styles.posBack]}
             onPress={() => {
               if (from === 'Dashboard') {
-                navigation.navigate('Audit', { apiUrl, jwt });
+                navigation.navigate('Audit', { apiUrl, jwt, role });
               } else {
-                navigation.navigate('Dashboard', { apiUrl, jwt });
+                navigation.navigate('Dashboard', { apiUrl, jwt, role });
               }
             }}
           >
@@ -36,10 +47,21 @@ export default function RadialMenuScreen({ navigation, route }: any) {
           </TouchableOpacity>
         )}
 
-        {/* BOTÓN 2: Llavero (Visible si no estás ya en el llavero) */}
-        {from !== 'ServerList' && (
-          <TouchableOpacity 
-            style={[styles.option, styles.posTopCenter]} 
+        {/* BOTÓN: Topología de Red (E2) */}
+        {showTopologyOption && (
+          <TouchableOpacity
+            style={[styles.option, styles.posTopology]}
+            onPress={() => navigation.navigate('NetworkGraph', { apiUrl, jwt, role })}
+          >
+            <Text style={styles.icon}>🌐</Text>
+            <Text style={styles.label}>Topología</Text>
+          </TouchableOpacity>
+        )}
+
+        {/* BOTÓN: Llavero (visible si no estás ya en el llavero) */}
+        {showKeychainOption && (
+          <TouchableOpacity
+            style={[styles.option, styles.posKeychain]}
             onPress={() => navigation.navigate('ServerList')}
           >
             <Text style={styles.icon}>🔑</Text>
@@ -47,9 +69,9 @@ export default function RadialMenuScreen({ navigation, route }: any) {
           </TouchableOpacity>
         )}
 
-        {/* BOTÓN 3: Salir (Siempre visible) */}
-        <TouchableOpacity 
-          style={[styles.option, from === 'ServerList' ? styles.posCenter : styles.posTopRight]} 
+        {/* BOTÓN: Salir (siempre visible) */}
+        <TouchableOpacity
+          style={[styles.option, from === 'ServerList' ? styles.posExitCentered : styles.posExit]}
           onPress={handleLogout}
         >
           <Text style={styles.icon}>👤</Text>
@@ -72,8 +94,9 @@ const styles = StyleSheet.create({
   option: { position: 'absolute', alignItems: 'center', width: 75 },
   icon: { fontSize: 28, backgroundColor: '#34495E', padding: 12, borderRadius: 30, overflow: 'hidden', textAlign: 'center' },
   label: { color: '#FFF', fontSize: 10, marginTop: 5, fontWeight: 'bold', textAlign: 'center' },
-  posTopLeft: { bottom: 160, right: 10 },
-  posTopCenter: { bottom: 120, right: 85 },
-  posTopRight: { bottom: 40, right: 125 },
-  posCenter: { bottom: 100, right: 10 }
+  posBack: { bottom: 210, right: 15 },
+  posTopology: { bottom: 185, right: 105 },
+  posKeychain: { bottom: 110, right: 160 },
+  posExit: { bottom: 40, right: 185 },
+  posExitCentered: { bottom: 100, right: 10 },
 });
