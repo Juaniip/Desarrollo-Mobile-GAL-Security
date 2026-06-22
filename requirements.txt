@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+docker
+pyjwt
+psutil
+firebase-admin
+requests
