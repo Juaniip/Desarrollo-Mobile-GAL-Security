@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator
 import axios from 'axios';
 
 export default function AuditScreen({ navigation, route }: any) {
-  const { apiUrl, jwt, role } = route.params;
+  const { apiUrl, jwt } = route.params;
   const [audit, setAudit] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
