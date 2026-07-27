@@ -1,0 +1,10 @@
+# Llaves y secretos
+firebase-key.json
+.env
+
+# Base de datos local (persiste vía volumen, no va al repo)
+data/
+
+# Archivos compilados de Python
+__pycache__/
+*.pyc
