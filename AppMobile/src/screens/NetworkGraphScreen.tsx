@@ -85,7 +85,7 @@ function GraphNodeBubble({ node, position }: { node: GraphNode; position: Point 
 }
 
 export default function NetworkGraphScreen({ navigation, route }: any) {
-  const { apiUrl, jwt } = route.params;
+  const { apiUrl, jwt, role } = route.params;
   const [data, setData] = useState<TopologyData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -174,7 +174,7 @@ export default function NetworkGraphScreen({ navigation, route }: any) {
 
       <TouchableOpacity
         style={styles.fab}
-        onPress={() => navigation.navigate('RadialMenu', { apiUrl, jwt, from: 'NetworkGraph' })}
+        onPress={() => navigation.navigate('RadialMenu', { apiUrl, jwt, role, from: 'NetworkGraph' })}
       >
         <Text style={styles.fabText}>⚙️</Text>
       </TouchableOpacity>

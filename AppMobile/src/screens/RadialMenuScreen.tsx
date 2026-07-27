@@ -8,10 +8,6 @@ export default function RadialMenuScreen({ navigation, route }: any) {
 
   const handleLogout = async () => {
     try {
-      // Firebase cierra la sesión de la app, pero el SDK nativo de Google
-      // mantiene su propia caché por separado. Sin este signOut(), la
-      // próxima vez que alguien toque "Acceder con Google" le va a devolver
-      // la misma cuenta sin mostrar el selector de cuentas.
       await GoogleSignin.signOut();
       await auth().signOut();
     } catch (error) {
@@ -30,7 +26,6 @@ export default function RadialMenuScreen({ navigation, route }: any) {
 
       <View style={styles.menuContainer}>
 
-        {/* BOTÓN: Dinámico (Auditoría o Volver al Dashboard) */}
         {showBackOption && (
           <TouchableOpacity
             style={[styles.option, styles.posBack]}
@@ -47,7 +42,6 @@ export default function RadialMenuScreen({ navigation, route }: any) {
           </TouchableOpacity>
         )}
 
-        {/* BOTÓN: Topología de Red (E2) */}
         {showTopologyOption && (
           <TouchableOpacity
             style={[styles.option, styles.posTopology]}
@@ -58,7 +52,6 @@ export default function RadialMenuScreen({ navigation, route }: any) {
           </TouchableOpacity>
         )}
 
-        {/* BOTÓN: Llavero (visible si no estás ya en el llavero) */}
         {showKeychainOption && (
           <TouchableOpacity
             style={[styles.option, styles.posKeychain]}
@@ -69,7 +62,6 @@ export default function RadialMenuScreen({ navigation, route }: any) {
           </TouchableOpacity>
         )}
 
-        {/* BOTÓN: Salir (siempre visible) */}
         <TouchableOpacity
           style={[styles.option, from === 'ServerList' ? styles.posExitCentered : styles.posExit]}
           onPress={handleLogout}
