@@ -20,7 +20,6 @@ export default function LogsScreen({ navigation, route }: any) {
   }, [apiUrl, jwt, containerId]);
 
   useEffect(() => { fetchLogs(); }, [fetchLogs]);
-
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>

@@ -20,7 +20,6 @@ export default function AuditScreen({ navigation, route }: any) {
   }, [apiUrl, jwt]);
 
   useEffect(() => { fetchAudit(); }, [fetchAudit]);
-
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
