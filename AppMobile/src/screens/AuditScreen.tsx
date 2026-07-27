@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator
 import axios from 'axios';
 
 export default function AuditScreen({ navigation, route }: any) {
-  const { apiUrl, jwt } = route.params;
+  const { apiUrl, jwt, role } = route.params;
   const [audit, setAudit] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -48,7 +48,7 @@ export default function AuditScreen({ navigation, route }: any) {
         </ScrollView>
       )}
 
-      <TouchableOpacity style={styles.fab} onPress={() => navigation.navigate('RadialMenu', { apiUrl, jwt, from: 'Audit' })}>
+      <TouchableOpacity style={styles.fab} onPress={() => navigation.navigate('RadialMenu', { apiUrl, jwt, role, from: 'Audit' })}>
             <Text style={styles.fabText}>⚙️</Text>
         </TouchableOpacity>
     </SafeAreaView>
