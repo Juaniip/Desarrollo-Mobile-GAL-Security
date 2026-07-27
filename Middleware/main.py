@@ -1,13 +1,21 @@
-from fastapi import FastAPI, HTTPException, Depends
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+import os
+
 import docker
 import psutil
+import requests
 import firebase_admin
+from fastapi import FastAPI, HTTPException, Depends
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from firebase_admin import credentials, auth
 
 # --- CONFIGURACIÓN DE SEGURIDAD ---
 app = FastAPI(title="GALs Middleware API", version="1.0")
 security = HTTPBearer()
+
+# --- CONFIGURACIÓN DEL DIRECTORIO DE ENTORNOS (NUEVO EN E2) ---
+REGISTRY_URL = os.environ.get("REGISTRY_URL", "").rstrip("/")
+SERVICE_KEY = os.environ.get("SERVICE_KEY", "")
+ENVIRONMENT_ID = os.environ.get("ENVIRONMENT_ID", "")
 
 # Inicializar Firebase Admin SDK con la llave privada de Google
 try:
@@ -29,26 +37,75 @@ except Exception as e:
 def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
     """Valida el JWT de Firebase preguntándole a los servidores de Google."""
     try:
-        # verify_id_token se conecta con Google para asegurar que el token es 100% real
         decoded_token = auth.verify_id_token(credentials.credentials)
         return decoded_token
     except Exception as e:
         print(f"Error de validación OAuth2: {e}")
         raise HTTPException(status_code=401, detail="Token de Firebase inválido o expirado")
 
+
+# --- VERIFICACIÓN DE ROL CONTRA EL DIRECTORIO (E2) ---
+def get_role_from_registry(uid: str):
+    """
+    Consulta al Directorio de Entornos (gals-registry) para resolver el rol
+    del uid sobre ESTE nodo (ENVIRONMENT_ID). Fail-closed: cualquier error
+    de configuración, red o respuesta inesperada se trata como "sin rol",
+    nunca como acceso permitido.
+    """
+    if not REGISTRY_URL or not ENVIRONMENT_ID or not SERVICE_KEY:
+        print("ADVERTENCIA: REGISTRY_URL / ENVIRONMENT_ID / SERVICE_KEY no configurados. Denegando por defecto.")
+        return None
+
+    try:
+        res = requests.get(
+            f"{REGISTRY_URL}/environments/{ENVIRONMENT_ID}/role",
+            params={"uid": uid},
+            headers={"X-Service-Key": SERVICE_KEY},
+            timeout=2,
+        )
+        if res.status_code != 200:
+            return None
+        return res.json().get("role")
+    except requests.RequestException as e:
+        print(f"No se pudo contactar al Directorio de Entornos: {e}")
+        return None
+
+
+def require_role(allowed_roles: list):
+    """
+    Fábrica de dependencias de FastAPI: exige que el uid autenticado tenga
+    uno de los roles permitidos sobre el entorno de este nodo.
+    """
+    def dependency(token: dict = Depends(verify_token)):
+        uid = token["uid"]
+        role = get_role_from_registry(uid)
+        if role not in allowed_roles:
+            raise HTTPException(status_code=403, detail="No tenés permisos sobre este entorno")
+        return token
+    return dependency
+
+
+READ_ROLES = ["administrador", "operador"]
+ADMIN_ONLY = ["administrador"]
+
 # --- ENDPOINTS PÚBLICOS ---
 @app.get("/")
 def health_check():
     return {"status": "online", "service": "GALs Middleware", "auth": "Firebase OAuth2"}
 
-# --- ENDPOINTS PROTEGIDOS (Requieren JWT válido de Google/Firebase) ---
+# --- ENDPOINTS PROTEGIDOS (Requieren rol válido sobre este entorno) ---
 
-@app.get("/containers", dependencies=[Depends(verify_token)])
+@app.get("/containers", dependencies=[Depends(require_role(READ_ROLES))])
 def list_containers():
-    """Lista todos los contenedores y su estado."""
+    """
+    Lista todos los contenedores y su estado. Incluye exit_code para que el
+    cliente pueda distinguir un contenedor detenido a propósito (exit_code 0)
+    de uno que se cayó por error (exit_code != 0) — usado por las alertas
+    de "interrupción inesperada de servicios" en la app.
+    """
     if not client:
         raise HTTPException(status_code=500, detail="Docker no conectado")
-    
+
     containers = client.containers.list(all=True)
     return {
         "containers": [
@@ -56,26 +113,24 @@ def list_containers():
                 "id": c.short_id,
                 "name": c.name,
                 "status": c.status,
-                "image": c.image.tags[0] if c.image.tags else "Unknown"
+                "image": c.image.tags[0] if c.image.tags else "Unknown",
+                "exit_code": c.attrs.get("State", {}).get("ExitCode")
             } for c in containers
         ]
     }
 
-@app.post("/containers/{container_id}/{action}", dependencies=[Depends(verify_token)])
+@app.post("/containers/{container_id}/{action}", dependencies=[Depends(require_role(ADMIN_ONLY))])
 def control_container(container_id: str, action: str):
-    """Ejecuta start, stop o restart en un contenedor específico."""
+    """Ejecuta start, stop o restart en un contenedor específico. Solo Administrador."""
     if not client:
         raise HTTPException(status_code=500, detail="Docker no conectado")
-    
+
     if action not in ["start", "stop", "restart"]:
         raise HTTPException(status_code=400, detail="Acción no permitida. Usar: start, stop, restart")
 
     try:
         container = client.containers.get(container_id)
-        # Ejecutamos dinámicamente el método (ej: container.start())
         getattr(container, action)()
-        
-        # Recargamos el estado para confirmar
         container.reload()
         return {"message": f"Contenedor {container_id} -> {action}", "new_status": container.status}
     except docker.errors.NotFound:
@@ -83,7 +138,7 @@ def control_container(container_id: str, action: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/containers/{container_id}/logs", dependencies=[Depends(verify_token)])
+@app.get("/containers/{container_id}/logs", dependencies=[Depends(require_role(READ_ROLES))])
 def get_logs(container_id: str):
     """Obtiene las últimas 50 líneas de logs del contenedor."""
     try:
@@ -93,7 +148,7 @@ def get_logs(container_id: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/metrics", dependencies=[Depends(verify_token)])
+@app.get("/metrics", dependencies=[Depends(require_role(READ_ROLES))])
 def get_hardware_metrics():
     """Lee la telemetría del host."""
     try:
@@ -103,8 +158,7 @@ def get_hardware_metrics():
             "ram_used_gb": round(psutil.virtual_memory().used / (1024**3), 2),
             "ram_total_gb": round(psutil.virtual_memory().total / (1024**3), 2)
         }
-        
-        # Intentamos leer la temperatura (si el SO lo soporta)
+
         try:
             temps = psutil.sensors_temperatures()
             if temps and 'cpu_thermal' in temps:
@@ -118,15 +172,15 @@ def get_hardware_metrics():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/audit", dependencies=[Depends(verify_token)])
+@app.get("/audit", dependencies=[Depends(require_role(READ_ROLES))])
 def run_security_audit():
     """Analiza la topología y privilegios para calcular el Risk Score."""
     if not client:
         raise HTTPException(status_code=500, detail="Docker no conectado")
-    
+
     containers = client.containers.list(all=True)
     audit_results = []
-    total_score = 100 # Empezamos con calificación perfecta
+    total_score = 100
 
     for c in containers:
         try:
@@ -134,19 +188,16 @@ def run_security_audit():
             warnings = []
             risk_penalty = 0
 
-            # 1. Auditoría de Privilegios (Root)
             user = attrs['Config'].get('User', '')
             if not user or user == 'root' or user == '0':
                 warnings.append("Ejecutando como ROOT")
                 risk_penalty += 15
 
-            # 2. Auditoría de Red (Zero Trust Check)
             net_mode = attrs['HostConfig'].get('NetworkMode', '')
             if net_mode in ['bridge', 'host']:
                 warnings.append(f"Red no aislada ({net_mode})")
                 risk_penalty += 10
 
-            # 3. Auditoría de Puertos Expuestos (Bind Mounts)
             ports = attrs['HostConfig'].get('PortBindings')
             if ports:
                 warnings.append(f"Puertos expuestos al Host")
@@ -163,10 +214,53 @@ def run_security_audit():
         except Exception as e:
             print(f"Error auditando {c.name}: {e}")
 
-    # El score no puede ser menor a 0
     final_score = max(0, total_score)
 
     return {
         "risk_score": final_score,
         "details": audit_results
     }
+
+@app.get("/topology", dependencies=[Depends(require_role(READ_ROLES))])
+def get_network_topology():
+    """Construye el Grafo de Dependencias de Red del nodo."""
+    if not client:
+        raise HTTPException(status_code=500, detail="Docker no conectado")
+
+    networks = client.networks.list()
+    containers = client.containers.list(all=True)
+
+    nodes = []
+    edges = []
+
+    for net in networks:
+        nodes.append({
+            "id": f"net_{net.short_id}",
+            "type": "network",
+            "label": net.name,
+            "driver": net.attrs.get("Driver", "unknown"),
+            "is_exposed": net.name in ["bridge", "host"]
+        })
+
+    for c in containers:
+        try:
+            nodes.append({
+                "id": f"cnt_{c.short_id}",
+                "type": "container",
+                "label": c.name,
+                "status": c.status
+            })
+
+            container_networks = c.attrs.get("NetworkSettings", {}).get("Networks", {})
+            for net_name in container_networks.keys():
+                matching_net = next((n for n in networks if n.name == net_name), None)
+                if matching_net:
+                    edges.append({
+                        "source": f"cnt_{c.short_id}",
+                        "target": f"net_{matching_net.short_id}",
+                        "exposed": net_name in ["bridge", "host"]
+                    })
+        except Exception as e:
+            print(f"Error mapeando topología de {c.name}: {e}")
+
+    return {"nodes": nodes, "edges": edges}

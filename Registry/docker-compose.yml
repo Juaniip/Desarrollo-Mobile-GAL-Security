@@ -1,0 +1,19 @@
+services:
+  gals-registry:
+    build: .
+    container_name: gals-registry
+    restart: unless-stopped
+    environment:
+      - SERVICE_KEY=${SERVICE_KEY}
+    volumes:
+      - ./data:/app/data
+
+  gals-registry-tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: gals-registry-tunnel
+    restart: unless-stopped
+    depends_on:
+      - gals-registry
+    # Túnel propio, independiente del de gals-api: necesita una URL pública
+    # distinta porque tus compañeros lo van a llamar desde sus propios celulares.
+    command: tunnel --no-autoupdate --url http://gals-registry:8086

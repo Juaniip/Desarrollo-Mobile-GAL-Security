@@ -10,6 +10,7 @@ import DashboardScreen from './src/screens/DashboardScreen';
 import LogsScreen from './src/screens/LogsScreen';
 import AuditScreen from './src/screens/AuditScreen';
 import NetworkGraphScreen from './src/screens/NetworkGraphScreen';
+import EnvVarsScreen from './src/screens/EnvVarsScreen';
 import RadialMenuScreen from './src/screens/RadialMenuScreen';
 
 export type RootStackParamList = {
@@ -19,6 +20,7 @@ export type RootStackParamList = {
   Logs: { apiUrl: string; jwt: string; containerId: string; role?: 'administrador' | 'operador' };
   Audit: { apiUrl: string; jwt: string; role?: 'administrador' | 'operador' };
   NetworkGraph: { apiUrl: string; jwt: string; role?: 'administrador' | 'operador' };
+  EnvVars: { apiUrl: string; jwt: string; containerId: string; containerName: string };
   RadialMenu: {
     apiUrl?: string;
     jwt?: string;
@@ -61,6 +63,7 @@ export default function App() {
             <Stack.Screen name="Logs" component={LogsScreen} />
             <Stack.Screen name="Audit" component={AuditScreen} />
             <Stack.Screen name="NetworkGraph" component={NetworkGraphScreen} />
+            <Stack.Screen name="EnvVars" component={EnvVarsScreen} />
             <Stack.Screen
               name="RadialMenu"
               component={RadialMenuScreen}
@@ -74,10 +77,5 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#F5F7FA'
-  }
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F5F7FA' },
 });

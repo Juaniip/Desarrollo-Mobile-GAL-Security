@@ -4,3 +4,4 @@ docker
 pyjwt
 psutil
 firebase-admin
+requests
