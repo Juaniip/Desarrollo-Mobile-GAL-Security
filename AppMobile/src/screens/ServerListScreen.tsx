@@ -282,7 +282,8 @@ export default function ServerListScreen({ navigation, route }: any) {
   };
 
   // Entornos sin organización
-  const ungrouped = servers.filter(s => !s.organization_id);
+  const orgIds = organizations.map(o => o.organization_id);
+const ungrouped = servers.filter(s => !s.organization_id || !orgIds.includes(s.organization_id));
   // Entornos por organización
   const orgMap: Record<string, Environment[]> = {};
   organizations.forEach(org => { orgMap[org.organization_id] = servers.filter(s => s.organization_id === org.organization_id); });
